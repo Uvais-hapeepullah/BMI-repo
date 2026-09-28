@@ -2,3 +2,4 @@
 uvicorn
 pycryptodome
 pyserial
+websockets

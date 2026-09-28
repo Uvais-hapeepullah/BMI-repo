@@ -169,7 +169,9 @@ Re-attach the **Gateway ESP32** to your laptop. Confirm its COM port in Device M
 
 ---
 
-### Step 14 — Run the Python Patient Injector
+### Step 14 — Start the Python Backend and Open the UI
+
+The Python injector has been upgraded to a FastAPI web server that provides a Hardware-in-the-Loop (HIL) graphical user interface.
 
 Open a PowerShell terminal in `d:\simulator` and run:
 
@@ -180,20 +182,21 @@ python simulated_patient_injector.py --port COM4
 
 **What you'll see:**
 ```
-[PulseNet-Mesh] Opening serial port COM4 @ 115200 baud …
-[PulseNet-Mesh] Injecting telemetry every 2.0s — Ctrl+C to stop.
-
-  Node 1 | seq=0001 | HR= 72 bpm | SpO2=98% | hex_len= 64
-  Node 2 | seq=0001 | HR=100 bpm | SpO2=95% | hex_len= 64
-  Node 3 | seq=0001 | HR= 94 bpm | SpO2=97% | hex_len= 64
-── tick 0000 ─────────────────────────────────
-  Node 1 | seq=0002 | HR= 73 bpm | SpO2=98% | hex_len= 64
-  Node 2 | seq=0002 | HR=101 bpm | SpO2=95% | hex_len= 64  [!CRITICAL]
-  ...
+[PulseNet] Opening serial port COM4 @ 115200 ...
+[PulseNet] Starting web server on http://127.0.0.1:8000
+INFO:     Started server process [12345]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
 ```
 
-> **`[!CRITICAL]`** appears when Node 2's HR exceeds 140 bpm or SpO2 drops below 88% —
-> this simulates the deteriorating patient alerting condition.
+Now, open your web browser and navigate to **`http://127.0.0.1:8000`**. 
+
+You will see the **PulseNet-Mesh HIL Simulator UI**, where you can:
+- **Start/Stop** the telemetry injection to your ESP32 hardware network.
+- **Inject Faults:** Corrupt data packets, drop packets, or poison CRCs to test the mesh network's robustness.
+- **Add Randomness:** Adjust the data latency sizes, signal noise, and jitter.
+- **Watch Traversal:** Visually trace packets traversing the network from the injector to the gateway and over the relays.
 
 ---
 
