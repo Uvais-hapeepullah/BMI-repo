@@ -1,0 +1,1795 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PulseNet-Mesh — HIL Simulator</title>
+    <meta name="description"
+        content="Hardware-in-the-Loop simulation environment for the PulseNet-Mesh offline medical telemetry network">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap"
+        rel="stylesheet">
+
+    <style>
+        /* ════════════════════════════════════════════
+   TOKENS
+   ════════════════════════════════════════════ */
+        :root {
+            --saffron: #FF9933;
+            --saffron-hi: #FFB347;
+            --saffron-lo: #CC7700;
+            --saffron-glow: rgba(255, 153, 51, 0.12);
+            --saffron-glow2: rgba(255, 153, 51, 0.25);
+            --danger: #E84040;
+            --danger-dim: rgba(232, 64, 64, 0.14);
+            --warn: #F0A500;
+            --ok: #2ECC71;
+        }
+
+        [data-theme="dark"] {
+            --bg: #0B0B0B;
+            --bg1: #131313;
+            --bg2: #1A1A1A;
+            --bg3: #222222;
+            --border: #282828;
+            --borderB: #363636;
+            --text: #EEEEEE;
+            --text2: #888888;
+            --text3: #444444;
+            --acc: var(--saffron);
+        }
+
+        [data-theme="light"] {
+            --bg: #FFFFFF;
+            --bg1: #F6F6F6;
+            --bg2: #EEEEEE;
+            --bg3: #E4E4E4;
+            --border: #DADADA;
+            --borderB: #BFBFBF;
+            --text: #0B0B0B;
+            --text2: #555555;
+            --text3: #AAAAAA;
+            --acc: #C96800;
+        }
+
+        /* ════════════════════════════════════════════
+   RESET
+   ════════════════════════════════════════════ */
+        *,
+        *::before,
+        *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box
+        }
+
+        html,
+        body {
+            height: 100%;
+            overflow: hidden
+        }
+
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            font-size: 12.5px;
+            line-height: 1.5;
+            display: flex;
+            flex-direction: column;
+        }
+
+        button {
+            font-family: inherit;
+            cursor: pointer;
+            border: none;
+            background: none
+        }
+
+        ::-webkit-scrollbar {
+            width: 3px;
+            height: 3px
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg1)
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--borderB)
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--acc)
+        }
+
+        /* ════════════════════════════════════════════
+   HEADER
+   ════════════════════════════════════════════ */
+        #hdr {
+            height: 46px;
+            min-height: 46px;
+            background: var(--bg1);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            padding: 0 14px;
+            gap: 16px;
+            flex-shrink: 0;
+            z-index: 10;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            text-decoration: none
+        }
+
+        .logo-name {
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: .06em;
+            color: var(--acc);
+            line-height: 1.1
+        }
+
+        .logo-sub {
+            font-size: 9px;
+            color: var(--text3);
+            letter-spacing: .12em;
+            text-transform: uppercase
+        }
+
+        .vsep {
+            width: 1px;
+            height: 22px;
+            background: var(--border)
+        }
+
+        .hchip {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+        }
+
+        .sdot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--text3);
+            flex-shrink: 0;
+        }
+
+        .sdot.run {
+            background: var(--ok);
+            box-shadow: 0 0 0 3px rgba(46, 204, 113, .2);
+            animation: pg 2s infinite
+        }
+
+        .sdot.stop {
+            background: var(--danger)
+        }
+
+        @keyframes pg {
+
+            0%,
+            100% {
+                box-shadow: 0 0 0 3px rgba(46, 204, 113, .2)
+            }
+
+            50% {
+                box-shadow: 0 0 0 6px rgba(46, 204, 113, .04)
+            }
+        }
+
+        .hk {
+            color: var(--text3);
+            font-size: 10px
+        }
+
+        .hv {
+            color: var(--text2)
+        }
+
+        .hv.acc {
+            color: var(--acc)
+        }
+
+        .hv.red {
+            color: var(--danger)
+        }
+
+        .hdr-r {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 10px
+        }
+
+        .icon-btn {
+            width: 30px;
+            height: 30px;
+            border: 1px solid var(--border);
+            background: var(--bg2);
+            color: var(--text2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 2px;
+            transition: border-color .2s, color .2s;
+        }
+
+        .icon-btn:hover {
+            border-color: var(--acc);
+            color: var(--acc)
+        }
+
+        .run-btn {
+            height: 30px;
+            padding: 0 14px;
+            border: 1px solid var(--acc);
+            color: var(--acc);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10.5px;
+            font-weight: 700;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            border-radius: 2px;
+            transition: all .15s;
+        }
+
+        .run-btn:hover,
+        .run-btn.on {
+            background: var(--acc);
+            color: var(--bg)
+        }
+
+        .run-btn.on {
+            border-color: var(--danger);
+            background: var(--danger)
+        }
+
+        /* ════════════════════════════════════════════
+   WORKSPACE
+   ════════════════════════════════════════════ */
+        #ws {
+            display: flex;
+            flex: 1;
+            overflow: hidden
+        }
+
+        /* ════════════════════════════════════════════
+   LEFT PANEL
+   ════════════════════════════════════════════ */
+        #lp {
+            width: 252px;
+            min-width: 252px;
+            border-right: 1px solid var(--border);
+            background: var(--bg1);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .sec {
+            padding: 11px 11px;
+            border-bottom: 1px solid var(--border)
+        }
+
+        .sec-title {
+            font-size: 9.5px;
+            font-weight: 700;
+            letter-spacing: .13em;
+            text-transform: uppercase;
+            color: var(--text3);
+            margin-bottom: 9px;
+        }
+
+        /* ── Node Cards ── */
+        .ncard {
+            border: 1px solid var(--border);
+            background: var(--bg2);
+            margin-bottom: 7px;
+            padding: 9px;
+            position: relative;
+            transition: border-color .3s;
+        }
+
+        .ncard:last-child {
+            margin-bottom: 0
+        }
+
+        .ncard.critical {
+            border-color: var(--danger);
+            animation: cardpulse 2s ease-in-out infinite
+        }
+
+        .ncard.tx {
+            border-color: var(--acc)
+        }
+
+        @keyframes cardpulse {
+
+            0%,
+            100% {
+                box-shadow: none
+            }
+
+            50% {
+                box-shadow: 0 0 14px rgba(232, 64, 64, .18)
+            }
+        }
+
+        .ncard-hd {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 7px
+        }
+
+        .ni {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--text3);
+            flex-shrink: 0
+        }
+
+        .ni.s {
+            background: var(--ok)
+        }
+
+        .ni.e {
+            background: var(--warn)
+        }
+
+        .ni.c {
+            background: var(--danger);
+            animation: blink 1s step-end infinite
+        }
+
+        @keyframes blink {
+            50% {
+                opacity: 0
+            }
+        }
+
+        .nname {
+            font-size: 11px;
+            font-weight: 600;
+            flex: 1
+        }
+
+        .nbadge {
+            font-size: 8.5px;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            letter-spacing: .05em;
+            text-transform: uppercase;
+            padding: 2px 5px;
+            border: 1px solid;
+        }
+
+        .nbadge.s {
+            color: var(--ok);
+            border-color: var(--ok)
+        }
+
+        .nbadge.e {
+            color: var(--warn);
+            border-color: var(--warn)
+        }
+
+        .nbadge.c {
+            color: var(--danger);
+            border-color: var(--danger)
+        }
+
+        .nvitals {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 5px;
+            margin-bottom: 7px
+        }
+
+        .vbox {
+            background: var(--bg3);
+            padding: 5px 7px
+        }
+
+        .vlbl {
+            font-size: 8.5px;
+            color: var(--text3);
+            font-weight: 600;
+            letter-spacing: .1em
+        }
+
+        .vval {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 19px;
+            font-weight: 700;
+            color: var(--text);
+            line-height: 1.1
+        }
+
+        .vval.e {
+            color: var(--warn)
+        }
+
+        .vval.c {
+            color: var(--danger)
+        }
+
+        .vunit {
+            font-size: 8.5px;
+            color: var(--text3);
+            margin-left: 1px
+        }
+
+        .nbar-w {
+            height: 2px;
+            background: var(--bg3);
+            overflow: hidden;
+            margin-bottom: 5px
+        }
+
+        .nbar {
+            height: 100%;
+            background: var(--acc);
+            transition: width 1.2s ease, background .5s
+        }
+
+        .nbar.e {
+            background: var(--warn)
+        }
+
+        .nbar.c {
+            background: var(--danger)
+        }
+
+        .wcanvas {
+            width: 100%;
+            height: 26px;
+            display: block;
+            background: var(--bg3)
+        }
+
+        .nseq {
+            margin-top: 4px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 9.5px;
+            color: var(--text3)
+        }
+
+        /* ── Sliders ── */
+        .crow {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 7px;
+            gap: 6px
+        }
+
+        .clbl {
+            font-size: 11px;
+            color: var(--text2);
+            flex: 1
+        }
+
+        .cval {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: var(--acc);
+            min-width: 38px;
+            text-align: right
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 2px;
+            background: var(--bg3);
+            outline: none;
+            margin: 3px 0 8px;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 11px;
+            height: 11px;
+            background: var(--acc);
+            cursor: pointer;
+            border-radius: 0;
+        }
+
+        .divr {
+            height: 1px;
+            background: var(--border);
+            margin: 7px 0
+        }
+
+        /* ════════════════════════════════════════════
+   CENTER PANEL
+   ════════════════════════════════════════════ */
+        #cp {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            min-width: 0
+        }
+
+        /* Topology */
+        #topo-wrap {
+            flex: 1;
+            min-height: 0;
+            position: relative;
+            padding: 14px;
+            background: var(--bg);
+            overflow: hidden;
+        }
+
+        #topo-svg {
+            width: 100%;
+            height: 100%
+        }
+
+        /* SVG styles */
+        .mn-bg {
+            fill: var(--bg2);
+            stroke: var(--border);
+            stroke-width: 1.5
+        }
+
+        .mn-bg.gw {
+            fill: var(--bg3)
+        }
+
+        .mn-bg.active {
+            stroke: var(--saffron);
+            stroke-width: 2
+        }
+
+        .mn-lbl {
+            fill: var(--text);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: .08em;
+            dominant-baseline: middle;
+            text-anchor: middle;
+        }
+
+        .mn-sub {
+            fill: var(--text3);
+            font-family: 'Inter', sans-serif;
+            font-size: 8px;
+            dominant-baseline: middle;
+            text-anchor: middle;
+        }
+
+        .mn-acc {
+            fill: var(--saffron)
+        }
+
+        .lk-usb {
+            stroke: var(--borderB);
+            stroke-width: 2.5;
+            fill: none
+        }
+
+        .lk-air {
+            stroke: var(--border);
+            stroke-width: 1.5;
+            fill: none;
+            stroke-dasharray: 5, 4;
+            transition: stroke .3s, opacity .3s;
+        }
+
+        .lk-air.lit {
+            stroke: var(--saffron);
+            opacity: .8
+        }
+
+        .lk-mesh {
+            stroke: var(--border);
+            stroke-width: 1;
+            fill: none;
+            stroke-dasharray: 2, 6;
+            opacity: .4
+        }
+
+        .grid-bg {
+            fill: none
+        }
+
+        /* Packet anatomy */
+        #anatomy {
+            height: 154px;
+            min-height: 154px;
+            border-top: 1px solid var(--border);
+            background: var(--bg1);
+            display: flex;
+            overflow-x: auto;
+            overflow-y: hidden;
+            padding: 10px 14px;
+            gap: 0;
+            flex-shrink: 0;
+        }
+
+        .astep {
+            min-width: 175px;
+            flex-shrink: 0;
+            padding-right: 14px;
+            border-right: 1px solid var(--border);
+            margin-right: 14px;
+        }
+
+        .astep:last-child {
+            border-right: none
+        }
+
+        .astep-n {
+            font-size: 8.5px;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text3);
+            letter-spacing: .1em
+        }
+
+        .astep-t {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--acc);
+            margin-bottom: 5px
+        }
+
+        .adata {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 8.5px;
+            color: var(--text2);
+            word-break: break-all;
+            line-height: 1.7;
+            max-height: 88px;
+            overflow-y: auto;
+        }
+
+        .adata .k {
+            color: var(--text3)
+        }
+
+        .adata .v {
+            color: var(--text)
+        }
+
+        .adata .vc {
+            color: var(--danger)
+        }
+
+        .adata .hex {
+            color: var(--acc);
+            font-size: 8px
+        }
+
+        .adata .ok {
+            color: var(--ok)
+        }
+
+        .adata .bad {
+            color: var(--danger)
+        }
+
+        .astep.lit {
+            background: var(--saffron-glow)
+        }
+
+        #aph {
+            color: var(--text3);
+            font-size: 11px;
+            font-style: italic;
+            font-family: 'JetBrains Mono', monospace;
+            padding: 40px 16px;
+        }
+
+        /* ════════════════════════════════════════════
+   RIGHT PANEL
+   ════════════════════════════════════════════ */
+        #rp {
+            width: 272px;
+            min-width: 272px;
+            border-left: 1px solid var(--border);
+            background: var(--bg1);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .cbtn-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 5px
+        }
+
+        .cbtn {
+            padding: 8px 4px;
+            border: 1px solid var(--border);
+            background: var(--bg2);
+            color: var(--text2);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 9.5px;
+            font-weight: 700;
+            letter-spacing: .05em;
+            text-transform: uppercase;
+            text-align: center;
+            line-height: 1.3;
+            border-radius: 2px;
+            transition: all .15s;
+        }
+
+        .cbtn:hover {
+            border-color: var(--danger);
+            color: var(--danger);
+            background: var(--danger-dim)
+        }
+
+        .cbtn.armed {
+            border-color: var(--danger);
+            color: var(--danger);
+            background: var(--danger-dim);
+            animation: ablink .8s step-end infinite;
+        }
+
+        @keyframes ablink {
+            50% {
+                background: rgba(232, 64, 64, .26)
+            }
+        }
+
+        .cbtn.fw {
+            grid-column: 1/-1
+        }
+
+        .cbtn-ico {
+            display: block;
+            font-size: 13px;
+            margin-bottom: 2px
+        }
+
+        .armed-bar {
+            display: none;
+            margin-top: 6px;
+            padding: 4px 7px;
+            border: 1px solid var(--danger);
+            color: var(--danger);
+            background: var(--danger-dim);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 9.5px;
+            text-align: center;
+            animation: ablink .8s step-end infinite;
+        }
+
+        .armed-bar.show {
+            display: block
+        }
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 5px
+        }
+
+        .sbox {
+            background: var(--bg2);
+            padding: 8px;
+            border: 1px solid var(--border)
+        }
+
+        .sval {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--acc);
+            line-height: 1;
+        }
+
+        .slbl {
+            font-size: 8.5px;
+            color: var(--text3);
+            font-weight: 600;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            margin-top: 2px
+        }
+
+        /* ════════════════════════════════════════════
+   LOG
+   ════════════════════════════════════════════ */
+        #log-wrap {
+            height: 152px;
+            min-height: 152px;
+            border-top: 1px solid var(--border);
+            background: var(--bg);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+
+        #log-hdr {
+            height: 26px;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg1);
+            display: flex;
+            align-items: center;
+            padding: 0 11px;
+            gap: 9px;
+            flex-shrink: 0;
+        }
+
+        #log-hdr .lbl {
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: .12em;
+            text-transform: uppercase;
+            color: var(--text3)
+        }
+
+        #log-entries {
+            flex: 1;
+            overflow-y: auto;
+            padding: 4px 11px;
+            display: flex;
+            flex-direction: column-reverse
+        }
+
+        .le {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10.5px;
+            line-height: 1.85;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .lts {
+            color: var(--text3);
+            margin-right: 7px
+        }
+
+        .ltag {
+            font-weight: 700;
+            margin-right: 5px
+        }
+
+        .ltag.gw {
+            color: var(--saffron)
+        }
+
+        .ltag.rr {
+            color: #FFB347
+        }
+
+        .ltag.inj {
+            color: var(--text2)
+        }
+
+        .ltag.err {
+            color: var(--danger)
+        }
+
+        .ltag.ok {
+            color: var(--ok)
+        }
+
+        .ltag.warn {
+            color: var(--warn)
+        }
+
+        .lb {
+            color: var(--text2)
+        }
+
+        .lb .hi {
+            color: var(--text)
+        }
+
+        .lb .c {
+            color: var(--danger)
+        }
+
+        .lb .a {
+            color: var(--saffron)
+        }
+
+        .log-clr-btn {
+            margin-left: auto;
+            font-size: 9.5px;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text3);
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            border: none;
+            background: none;
+            cursor: pointer;
+        }
+
+        .log-clr-btn:hover {
+            color: var(--danger)
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ═══ HEADER ═══════════════════════════════════════ -->
+    <header id="hdr">
+        <div class="logo">
+            <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
+                <circle cx="15" cy="15" r="12" stroke="var(--acc)" stroke-width="1.4" />
+                <circle cx="15" cy="15" r="5" fill="var(--acc)" opacity=".9" />
+                <circle cx="15" cy="15" r="8.5" stroke="var(--acc)" stroke-width=".7" stroke-dasharray="2.5 3" />
+                <path d="M6 15L9.5 15L11 10.5L13 19L14.5 12L16.5 15L24 15" stroke="var(--acc)" stroke-width="1.3"
+                    fill="none" stroke-linecap="round" />
+            </svg>
+            <div>
+                <div class="logo-name">PULSENET-MESH</div>
+                <div class="logo-sub">HIL Simulator v1.0</div>
+            </div>
+        </div>
+
+        <div class="vsep"></div>
+        <div class="hchip">
+            <div class="sdot stop" id="sdot"></div><span id="sstat" class="hv" style="font-size:11px">STOPPED</span>
+        </div>
+        <div class="vsep"></div>
+        <div class="hchip"><span class="hk">TICK</span><span class="hv acc" id="hd-tick"
+                style="margin-left:4px">0000</span></div>
+        <div class="hchip"><span class="hk">TX</span><span class="hv" id="hd-tx" style="margin-left:4px">0</span></div>
+        <div class="hchip"><span class="hk">DROP</span><span class="hv red" id="hd-drop"
+                style="margin-left:4px">0</span></div>
+        <div class="hchip"><span class="hk">CORRUPT</span><span class="hv" style="color:var(--warn);margin-left:4px"
+                id="hd-corr">0</span></div>
+
+        <div class="hdr-r">
+            <button class="icon-btn" id="theme-btn" title="Toggle theme">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"
+                    stroke-linecap="round">
+                    <circle cx="7" cy="7" r="2.8" />
+                    <line x1="7" y1="1" x2="7" y2="2.4" />
+                    <line x1="7" y1="11.6" x2="7" y2="13" />
+                    <line x1="1" y1="7" x2="2.4" y2="7" />
+                    <line x1="11.6" y1="7" x2="13" y2="7" />
+                    <line x1="2.8" y1="2.8" x2="3.8" y2="3.8" />
+                    <line x1="10.2" y1="10.2" x2="11.2" y2="11.2" />
+                    <line x1="11.2" y1="2.8" x2="10.2" y2="3.8" />
+                    <line x1="3.8" y1="10.2" x2="2.8" y2="11.2" />
+                </svg>
+            </button>
+            <button class="run-btn" id="run-btn">▶ START</button>
+        </div>
+    </header>
+
+    <!-- ═══ WORKSPACE ═══════════════════════════════════ -->
+    <div id="ws">
+
+        <!-- ─── LEFT PANEL ─────────────────────────────── -->
+        <aside id="lp">
+
+            <div class="sec">
+                <div class="sec-title">Patient Nodes</div>
+
+                <!-- Node 1 -->
+                <div class="ncard" id="card-1">
+                    <div class="ncard-hd">
+                        <div class="ni s" id="ni-1"></div>
+                        <div class="nname">NODE 1</div>
+                        <div class="nbadge s" id="nb-1">STABLE</div>
+                    </div>
+                    <div class="nvitals">
+                        <div class="vbox">
+                            <div class="vlbl">HR</div>
+                            <div class="vval" id="hr-1">72<span class="vunit">bpm</span></div>
+                        </div>
+                        <div class="vbox">
+                            <div class="vlbl">SpO2</div>
+                            <div class="vval" id="sp-1">98<span class="vunit">%</span></div>
+                        </div>
+                    </div>
+                    <div class="nbar-w">
+                        <div class="nbar" id="bar-1" style="width:40%"></div>
+                    </div>
+                    <canvas class="wcanvas" id="wv-1" height="26"></canvas>
+                    <div class="nseq">seq <span id="sq-1" style="color:var(--text2)">#0000</span> &nbsp;·&nbsp; last:
+                        <span id="lat-1" style="color:var(--text3)">—</span></div>
+                </div>
+
+                <!-- Node 2 (deteriorating) -->
+                <div class="ncard" id="card-2">
+                    <div class="ncard-hd">
+                        <div class="ni e" id="ni-2"></div>
+                        <div class="nname">NODE 2 <span
+                                style="font-size:8.5px;color:var(--danger);font-weight:400">(deteriorating)</span></div>
+                        <div class="nbadge e" id="nb-2">ELEVATED</div>
+                    </div>
+                    <div class="nvitals">
+                        <div class="vbox">
+                            <div class="vlbl">HR</div>
+                            <div class="vval e" id="hr-2">100<span class="vunit">bpm</span></div>
+                        </div>
+                        <div class="vbox">
+                            <div class="vlbl">SpO2</div>
+                            <div class="vval e" id="sp-2">95<span class="vunit">%</span></div>
+                        </div>
+                    </div>
+                    <div class="nbar-w">
+                        <div class="nbar e" id="bar-2" style="width:56%"></div>
+                    </div>
+                    <canvas class="wcanvas" id="wv-2" height="26"></canvas>
+                    <div class="nseq">seq <span id="sq-2" style="color:var(--text2)">#0000</span> &nbsp;·&nbsp; last:
+                        <span id="lat-2" style="color:var(--text3)">—</span></div>
+                </div>
+
+                <!-- Node 3 -->
+                <div class="ncard" id="card-3">
+                    <div class="ncard-hd">
+                        <div class="ni e" id="ni-3"></div>
+                        <div class="nname">NODE 3</div>
+                        <div class="nbadge e" id="nb-3">ELEVATED</div>
+                    </div>
+                    <div class="nvitals">
+                        <div class="vbox">
+                            <div class="vlbl">HR</div>
+                            <div class="vval e" id="hr-3">94<span class="vunit">bpm</span></div>
+                        </div>
+                        <div class="vbox">
+                            <div class="vlbl">SpO2</div>
+                            <div class="vval e" id="sp-3">97<span class="vunit">%</span></div>
+                        </div>
+                    </div>
+                    <div class="nbar-w">
+                        <div class="nbar e" id="bar-3" style="width:52%"></div>
+                    </div>
+                    <canvas class="wcanvas" id="wv-3" height="26"></canvas>
+                    <div class="nseq">seq <span id="sq-3" style="color:var(--text2)">#0000</span> &nbsp;·&nbsp; last:
+                        <span id="lat-3" style="color:var(--text3)">—</span></div>
+                </div>
+            </div>
+
+            <!-- Sim Controls -->
+            <div class="sec">
+                <div class="sec-title">Simulation Engine</div>
+
+                <div class="crow">
+                    <div class="clbl">Base Interval</div>
+                    <div class="cval" id="cv-int">2.0s</div>
+                </div>
+                <input type="range" id="sl-int" min="500" max="5000" value="2000" step="100">
+
+                <div class="crow">
+                    <div class="clbl">Jitter (±ms)</div>
+                    <div class="cval" id="cv-jit">300</div>
+                </div>
+                <input type="range" id="sl-jit" min="0" max="2000" value="300" step="50">
+
+                <div class="crow">
+                    <div class="clbl">Packet Size Var</div>
+                    <div class="cval" id="cv-sz">±6B</div>
+                </div>
+                <input type="range" id="sl-sz" min="0" max="32" value="6" step="1">
+
+                <div class="crow">
+                    <div class="clbl">Random Drop Rate</div>
+                    <div class="cval" id="cv-dr">0%</div>
+                </div>
+                <input type="range" id="sl-dr" min="0" max="30" value="0" step="1">
+
+                <div class="crow">
+                    <div class="clbl">Signal Noise</div>
+                    <div class="cval" id="cv-ns">0%</div>
+                </div>
+                <input type="range" id="sl-ns" min="0" max="50" value="0" step="5">
+            </div>
+
+        </aside>
+
+        <!-- ─── CENTER PANEL ────────────────────────────── -->
+        <main id="cp">
+            <div id="topo-wrap">
+                <svg id="topo-svg" viewBox="0 0 840 370" preserveAspectRatio="xMidYMid meet"
+                    xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <filter id="fg" x="-60%" y="-60%" width="220%" height="220%">
+                            <feGaussianBlur stdDeviation="3.5" result="b" />
+                            <feMerge>
+                                <feMergeNode in="b" />
+                                <feMergeNode in="SourceGraphic" />
+                            </feMerge>
+                        </filter>
+                        <filter id="fr">
+                            <feGaussianBlur stdDeviation="3" result="b" />
+                            <feMerge>
+                                <feMergeNode in="b" />
+                                <feMergeNode in="SourceGraphic" />
+                            </feMerge>
+                        </filter>
+                        <pattern id="grd" width="28" height="28" patternUnits="userSpaceOnUse">
+                            <path d="M 28 0 L 0 0 0 28" fill="none" stroke="rgba(255,153,51,0.035)"
+                                stroke-width="0.5" />
+                        </pattern>
+                    </defs>
+
+                    <!-- Grid -->
+                    <rect width="840" height="370" fill="url(#grd)" />
+
+                    <!-- ── LINKS ── -->
+                    <!-- USB: Injector right-edge (122,185) → Gateway left-vertex (229,185) -->
+                    <path id="p-usb" d="M 122 185 L 229 185" class="lk-usb" />
+                    <text x="175" y="172" text-anchor="middle" font-family="JetBrains Mono" font-size="7.5"
+                        fill="var(--text3)" letter-spacing=".1em">USB · 115200</text>
+
+                    <!-- ESP-NOW: Gateway right (281,173) → Relay1 left (440,115) -->
+                    <path id="p-w1" d="M 281 170 Q 362 82 440 115" class="lk-air" />
+                    <text x="358" y="86" text-anchor="middle" font-family="JetBrains Mono" font-size="7"
+                        fill="var(--text3)" letter-spacing=".08em">ESP-NOW Ch6</text>
+
+                    <!-- ESP-NOW: Gateway right (281,197) → Relay2 left (440,255) -->
+                    <path id="p-w2" d="M 281 200 Q 362 288 440 255" class="lk-air" />
+                    <text x="358" y="294" text-anchor="middle" font-family="JetBrains Mono" font-size="7"
+                        fill="var(--text3)" letter-spacing=".08em">ESP-NOW Ch6</text>
+
+                    <!-- Relay1 → Sink: (500,115) → (656,183) -->
+                    <path id="p-s1" d="M 500 115 Q 585 132 656 183" class="lk-air" />
+
+                    <!-- Relay2 → Sink: (500,255) → (656,197) -->
+                    <path id="p-s2" d="M 500 255 Q 585 238 656 197" class="lk-air" />
+
+                    <!-- Mesh cross (Relay1 bottom → Relay2 top) -->
+                    <path id="p-mx" d="M 470 145 L 470 225" class="lk-mesh" />
+                    <text x="485" y="188" font-family="JetBrains Mono" font-size="7" fill="var(--text3)"
+                        letter-spacing=".05em">MESH</text>
+
+                    <!-- ── NODES ── -->
+
+                    <!-- INJECTOR: centre (65,185), rect from (-57,-26) to (57,26) → absolute (8,159)-(122,211) -->
+                    <g id="nd-inj" transform="translate(65,185)">
+                        <rect x="-57" y="-26" width="114" height="52" rx="2" class="mn-bg" id="inj-r" />
+                        <!-- Laptop silhouette -->
+                        <rect x="-20" y="-14" width="40" height="24" rx="1" fill="none" stroke="var(--acc)"
+                            stroke-width="1" opacity=".55" />
+                        <rect x="-24" y="10" width="48" height="3.5" rx="1" fill="var(--bg3)" />
+                        <line x1="-16" y1="-9" x2="16" y2="-9" stroke="var(--acc)" stroke-width=".6" opacity=".4" />
+                        <line x1="-16" y1="-4" x2="10" y2="-4" stroke="var(--acc)" stroke-width=".6" opacity=".4" />
+                        <line x1="-16" y1="1" x2="13" y2="1" stroke="var(--acc)" stroke-width=".6" opacity=".4" />
+                        <!-- Heartbeat on screen -->
+                        <path d="M-14 4 L-10 4 L-8 -1 L-6 9 L-4 1 L-2 4 L6 4" stroke="var(--acc)" stroke-width=".8"
+                            fill="none" opacity=".7" />
+                        <text x="0" y="22" class="mn-lbl" style="font-size:7.5px">INJECTOR</text>
+                    </g>
+
+                    <!-- GATEWAY: centre (255,185), hexagon vertices at ±26,±15 -->
+                    <g id="nd-gw" transform="translate(255,185)">
+                        <polygon points="0,-32 27,-16 27,16 0,32 -27,16 -27,-16" class="mn-bg gw" id="gw-p" />
+                        <text x="0" y="-6" class="mn-lbl" style="font-size:10px">GW</text>
+                        <text x="0" y="8" class="mn-sub">NODE 0</text>
+                        <text x="0" y="20" font-family="JetBrains Mono" font-size="6.5" fill="var(--acc)" opacity=".7"
+                            text-anchor="middle" dominant-baseline="middle">GATEWAY</text>
+                    </g>
+
+                    <!-- RELAY 1: centre (470,115), r=30 -->
+                    <g id="nd-r1" transform="translate(470,115)">
+                        <circle r="32" class="mn-bg" id="r1-c" />
+                        <text x="0" y="-5" class="mn-lbl">R1</text>
+                        <text x="0" y="9" class="mn-sub">RELAY</text>
+                    </g>
+
+                    <!-- RELAY 2: centre (470,255), r=30 -->
+                    <g id="nd-r2" transform="translate(470,255)">
+                        <circle r="32" class="mn-bg" id="r2-c" />
+                        <text x="0" y="-5" class="mn-lbl">R2</text>
+                        <text x="0" y="9" class="mn-sub">RELAY</text>
+                    </g>
+
+                    <!-- SINK: centre (680,185), diamond ±24 -->
+                    <g id="nd-sink" transform="translate(680,185)">
+                        <polygon points="0,-30 24,0 0,30 -24,0" class="mn-bg" id="sink-p" />
+                        <text x="0" y="-4" class="mn-lbl" style="font-size:8px">SINK</text>
+                        <text x="0" y="9" class="mn-sub" style="font-size:7px">ENDPOINT</text>
+                    </g>
+
+                    <!-- Signal ripple rings on Gateway -->
+                    <g id="rings" transform="translate(255,185)">
+                        <circle r="36" fill="none" stroke="var(--saffron)" stroke-width="1" opacity="0" id="ring1" />
+                        <circle r="50" fill="none" stroke="var(--saffron)" stroke-width=".7" opacity="0" id="ring2" />
+                        <circle r="64" fill="none" stroke="var(--saffron)" stroke-width=".45" opacity="0" id="ring3" />
+                    </g>
+
+                    <!-- Hop counter badge -->
+                    <g transform="translate(760,354)">
+                        <text x="0" y="0" text-anchor="end" font-family="JetBrains Mono" font-size="8"
+                            fill="var(--text3)" letter-spacing=".1em">AES-128-ECB · MAX HOPS: 4 · CH 6</text>
+                    </g>
+
+                    <!-- Legend -->
+                    <g transform="translate(14,14)">
+                        <circle cx="5" cy="5" r="3.5" fill="var(--ok)" /> <text x="12" y="9" font-family="Inter"
+                            font-size="8" fill="var(--text3)">STABLE</text>
+                        <circle cx="5" cy="18" r="3.5" fill="var(--warn)" /> <text x="12" y="22" font-family="Inter"
+                            font-size="8" fill="var(--text3)">ELEVATED</text>
+                        <circle cx="5" cy="31" r="3.5" fill="var(--danger)" /><text x="12" y="35" font-family="Inter"
+                            font-size="8" fill="var(--text3)">CRITICAL</text>
+                    </g>
+
+                    <!-- Packet animation layer -->
+                    <g id="pkt-layer"></g>
+                </svg>
+            </div>
+
+            <!-- Packet Anatomy -->
+            <div id="anatomy">
+                <div id="aph">— start simulation to view live packet traversal —</div>
+            </div>
+        </main>
+
+        <!-- ─── RIGHT PANEL ─────────────────────────────── -->
+        <aside id="rp">
+
+            <!-- Fault Injection -->
+            <div class="sec">
+                <div class="sec-title">⚡ Fault Injection</div>
+                <div class="cbtn-grid">
+                    <button class="cbtn" id="b-bf" onclick="arm('bitFlip','b-bf')"><span class="cbtn-ico">⚡</span>BIT
+                        FLIP</button>
+                    <button class="cbtn" id="b-dp" onclick="arm('drop','b-dp')"><span class="cbtn-ico">✂</span>DROP
+                        PKT</button>
+                    <button class="cbtn" id="b-rp" onclick="arm('replay','b-rp')"><span
+                            class="cbtn-ico">↩</span>REPLAY</button>
+                    <button class="cbtn" id="b-tr" onclick="arm('truncate','b-tr')"><span
+                            class="cbtn-ico">⬛</span>TRUNCATE</button>
+                    <button class="cbtn fw" id="b-crc" onclick="arm('crcPoison','b-crc')"><span
+                            class="cbtn-ico">☠</span>CRC POISON</button>
+                    <button class="cbtn fw" id="b-bst" onclick="burstCorrupt()"
+                        style="border-color:var(--danger);color:var(--danger)"><span class="cbtn-ico">💥</span>BURST
+                        CORRUPT ×5</button>
+                </div>
+                <div class="armed-bar" id="arm-bar">⚡ FAULT ARMED — awaiting next packet</div>
+            </div>
+
+            <!-- Randomness -->
+            <div class="sec">
+                <div class="sec-title">Randomness Engine</div>
+
+                <div class="crow">
+                    <div class="clbl">Latency Spike Prob.</div>
+                    <div class="cval" id="cv-sp">5%</div>
+                </div>
+                <input type="range" id="sl-sp" min="0" max="30" value="5" step="1">
+
+                <div class="crow">
+                    <div class="clbl">Node 2 Decay Speed</div>
+                    <div class="cval" id="cv-dc">1.0×</div>
+                </div>
+                <input type="range" id="sl-dc" min="1" max="5" value="1" step="0.5">
+
+                <div class="crow">
+                    <div class="clbl">AES Key Error Prob.</div>
+                    <div class="cval" id="cv-ae">0%</div>
+                </div>
+                <input type="range" id="sl-ae" min="0" max="10" value="0" step="1">
+
+                <div class="divr"></div>
+                <button class="cbtn fw" onclick="injectSpike()" style="margin-bottom:4px"><span
+                        class="cbtn-ico">⏱</span>INJECT LATENCY SPIKE</button>
+                <button class="cbtn fw" onclick="resetNode2()"><span class="cbtn-ico">↺</span>RESET NODE 2
+                    VITALS</button>
+            </div>
+
+            <!-- Stats -->
+            <div class="sec">
+                <div class="sec-title">Network Stats</div>
+                <div class="stat-grid">
+                    <div class="sbox">
+                        <div class="sval" id="st-tx">0</div>
+                        <div class="slbl">Packets TX</div>
+                    </div>
+                    <div class="sbox">
+                        <div class="sval" id="st-rx" style="color:var(--text2)">0</div>
+                        <div class="slbl">Relayed</div>
+                    </div>
+                    <div class="sbox">
+                        <div class="sval" id="st-dp" style="color:var(--danger)">0</div>
+                        <div class="slbl">Dropped</div>
+                    </div>
+                    <div class="sbox">
+                        <div class="sval" id="st-co" style="color:var(--warn)">0</div>
+                        <div class="slbl">Corrupted</div>
+                    </div>
+                    <div class="sbox">
+                        <div class="sval" id="st-la" style="font-size:14px">—</div>
+                        <div class="slbl">Avg Latency</div>
+                    </div>
+                    <div class="sbox">
+                        <div class="sval" id="st-ho" style="font-size:14px">—</div>
+                        <div class="slbl">Avg Hops</div>
+                    </div>
+                </div>
+            </div>
+
+        </aside>
+    </div>
+
+    <!-- ═══ LOG ══════════════════════════════════════════ -->
+    <div id="log-wrap">
+        <div id="log-hdr">
+            <span class="lbl">Event Log</span>
+            <span id="log-cnt" style="color:var(--text3);font-size:9.5px;font-family:monospace">0 events</span>
+            <button class="log-clr-btn" onclick="clearLog()">CLEAR</button>
+        </div>
+        <div id="log-entries"></div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════
+     JAVASCRIPT
+     ═══════════════════════════════════════════════════ -->
+    <script>
+        'use strict';
+
+        /* ── CONFIG ─────────────────────────────────────── */
+        const SIM = {
+            running: false, tick: 0,
+            seq: { 1: 0, 2: 0, 3: 0 },
+            // Sliders
+            baseInt: 2000, jitter: 300, szVar: 6, dropRate: 0,
+            noise: 0, spikeProb: 5, decay: 1, aesErr: 0,
+            // Pending faults
+            pend: { bitFlip: false, drop: false, replay: false, truncate: false, crcPoison: false, burst: 0, spike: false },
+            // Stats
+            stats: { tx: 0, rx: 0, drop: 0, corrupt: 0, latencies: [], hops: [] },
+            timerH: null, logTotal: 0, node2Tick: 0,
+        };
+
+        /* ── WebSocket Bridge ── */
+        let ws = null;
+        function initWS() {
+            ws = new WebSocket(`ws://${location.host}/ws`);
+            ws.onopen = () => log('SYS', 'ok', 'WebSocket connected to backend bridge');
+            ws.onerror = () => log('SYS', 'err', 'WebSocket connection failed (hardware bridge disconnected)');
+            ws.onclose = () => {
+                log('SYS', 'warn', 'WebSocket closed, retrying in 3s...');
+                setTimeout(initWS, 3000);
+            };
+        }
+        initWS();
+
+        /* ── VITALS ─────────────────────────────────────── */
+        function v1(t) { return { hr: Math.max(60, Math.min(90, 72 + Math.round(4 * Math.sin(t * 0.3)))), spo2: Math.max(96, Math.min(100, 98 + Math.round(Math.sin(t * 0.2)))) }; }
+        function v2(t, d) { const p = Math.min((t * d) / 60, 1), n = (Math.random() - .5) * 3; return { hr: Math.max(100, Math.min(200, Math.round(100 + p * 60 + n))), spo2: Math.max(80, Math.min(99, Math.round(95 - p * 13 + n * .3))) }; }
+        function v3(t) { return { hr: Math.max(85, Math.min(120, 94 + Math.round(6 * Math.sin(t * .25 + 1)))), spo2: Math.max(94, Math.min(100, 97 + Math.round(Math.sin(t * .15)))) }; }
+        function vitals(nid, t) { return nid === 1 ? v1(t) : nid === 2 ? v2(t, SIM.decay) : v3(t); }
+
+        /* ── BUILD PACKET ───────────────────────────────── */
+        function mkPkt(nid) {
+            SIM.seq[nid]++;
+            const vi = vitals(nid, nid === 2 ? SIM.node2Tick : SIM.tick);
+            const szJ = Math.round((Math.random() - .5) * 2 * SIM.szVar);
+            const latJ = Math.round((Math.random() - .5) * 2 * SIM.jitter);
+            const spiked = SIM.pend.spike || Math.random() * 100 < SIM.spikeProb;
+            if (SIM.pend.spike) SIM.pend.spike = false;
+
+            const p = {
+                id: `p_${Date.now()}_${nid}`, nid, seq: SIM.seq[nid],
+                hr: vi.hr, spo2: vi.spo2, hops: 0, ts: Date.now(),
+                size: Math.max(16, 64 + szJ),
+                lat: Math.round(SIM.baseInt + latJ + (spiked ? 1200 + Math.random() * 800 : 0)),
+                spiked, corrupted: false, ctype: null, dropped: false, aesErr: false,
+            };
+
+            // Noise can randomly corrupt
+            if (!p.corrupted && SIM.noise > 0 && Math.random() * 100 < SIM.noise * .4) {
+                p.corrupted = true; p.ctype = 'NOISE';
+            }
+            // AES key error
+            if (!p.corrupted && Math.random() * 100 < SIM.aesErr) {
+                p.corrupted = true; p.ctype = 'AES_KEY_ERR'; p.aesErr = true;
+            }
+
+            // Burst
+            if (SIM.pend.burst > 0) { p.corrupted = true; p.ctype = 'BURST'; SIM.pend.burst--; }
+
+            // Individual faults
+            if (!p.corrupted) {
+                if (SIM.pend.bitFlip) { p.corrupted = true; p.ctype = 'BIT_FLIP'; p.hr ^= 0x7F; SIM.pend.bitFlip = false; disarm('b-bf'); }
+                else if (SIM.pend.truncate) { p.corrupted = true; p.ctype = 'TRUNCATE'; p.size = Math.max(8, Math.round(p.size * .3)); SIM.pend.truncate = false; disarm('b-tr'); }
+                else if (SIM.pend.crcPoison) { p.corrupted = true; p.ctype = 'CRC_POISON'; SIM.pend.crcPoison = false; disarm('b-crc'); }
+                else if (SIM.pend.replay) { p.corrupted = true; p.ctype = 'REPLAY'; p.seq = Math.max(1, SIM.seq[nid] - 2); SIM.pend.replay = false; disarm('b-rp'); }
+            }
+
+            // Drop
+            if (SIM.pend.drop || Math.random() * 100 < SIM.dropRate) {
+                p.dropped = true;
+                if (SIM.pend.drop) { SIM.pend.drop = false; disarm('b-dp'); }
+            }
+
+            return p;
+        }
+
+        /* ── FAKE HEX ───────────────────────────────────── */
+        function fakeHex(bytes, corrupt) {
+            const ch = '0123456789ABCDEF'; let h = '';
+            for (let i = 0; i < bytes; i++) {
+                if (corrupt && Math.random() < .08) h += '??';
+                else h += ch[Math.floor(Math.random() * 16)] + ch[Math.floor(Math.random() * 16)];
+            }
+            return h;
+        }
+        function fmtJson(p, hops) { return `{"node_id":${p.nid},"seq":${p.seq},"hr":${p.hr},"spo2":${p.spo2},"hops":${hops},"ts":${p.ts}}`; }
+
+        /* ── WAVEFORM BUFFERS ───────────────────────────── */
+        const wbuf = { 1: [], 2: [], 3: [] }; const WMAX = 55;
+
+        /* ── NODE CARD UPDATE ───────────────────────────── */
+        function updateCard(nid, p) {
+            const hr = p.hr, spo2 = p.spo2;
+            let st = 's', btxt = 'STABLE';
+            if (hr > 130 || spo2 < 88) { st = 'c'; btxt = 'CRITICAL'; }
+            else if (hr > 100 || spo2 < 94) { st = 'e'; btxt = 'ELEVATED'; }
+
+            document.getElementById(`hr-${nid}`).innerHTML = `${hr}<span class="vunit">bpm</span>`;
+            document.getElementById(`hr-${nid}`).className = `vval ${st === 's' ? '' : '' + st}`;
+            document.getElementById(`sp-${nid}`).innerHTML = `${spo2}<span class="vunit">%</span>`;
+            document.getElementById(`sp-${nid}`).className = `vval ${st === 's' ? '' : '' + st}`;
+            document.getElementById(`nb-${nid}`).textContent = btxt;
+            document.getElementById(`nb-${nid}`).className = `nbadge ${st}`;
+            document.getElementById(`ni-${nid}`).className = `ni ${st}`;
+            document.getElementById(`sq-${nid}`).textContent = `#${String(SIM.seq[nid]).padStart(4, '0')}`;
+            document.getElementById(`lat-${nid}`).textContent = `${p.lat}ms`;
+
+            const card = document.getElementById(`card-${nid}`);
+            card.className = `ncard${st === 'c' ? ' critical' : ''}`;
+            card.classList.add('tx'); setTimeout(() => card.classList.remove('tx'), 350);
+
+            const barPct = Math.min(100, Math.round((hr / 180) * 100));
+            document.getElementById(`bar-${nid}`).style.width = barPct + '%';
+            document.getElementById(`bar-${nid}`).className = `nbar ${st === 's' ? '' : st}`;
+
+            wbuf[nid].push(hr);
+            if (wbuf[nid].length > WMAX) wbuf[nid].shift();
+            drawWave(nid, st);
+        }
+
+        function drawWave(nid, st) {
+            const cv = document.getElementById(`wv-${nid}`);
+            const W = cv.offsetWidth || 224, H = 26;
+            cv.width = W; cv.height = H;
+            const ctx = cv.getContext('2d');
+            ctx.clearRect(0, 0, W, H);
+            const buf = wbuf[nid]; if (buf.length < 2) return;
+            const col = st === 'c' ? '#E84040' : st === 'e' ? '#F0A500' : '#FF9933';
+            ctx.strokeStyle = col; ctx.lineWidth = 1.5;
+            ctx.shadowBlur = 5; ctx.shadowColor = col;
+            ctx.beginPath();
+            buf.forEach((v, i) => {
+                const x = (i / (WMAX - 1)) * W;
+                const y = H - ((v - 50) / (200 - 50)) * (H - 2) - 1;
+                i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+        }
+
+        /* ── PACKET ANATOMY ─────────────────────────────── */
+        function showAnatomy(p) {
+            const el = document.getElementById('anatomy');
+            const hex = fakeHex(Math.round(p.size / 2), p.corrupted);
+            const j0 = fmtJson(p, 0), j1 = fmtJson(p, 1), j2 = fmtJson(p, 2);
+            const crit = p.hr > 130 || p.spo2 < 88;
+            const vc = crit ? 'vc' : 'v';
+
+            const step = (n, title, body, lit) => `
+    <div class="astep${lit ? ' lit' : ''}">
+      <div class="astep-n">STEP ${n}</div>
+      <div class="astep-t">${title}</div>
+      <div class="adata">${body}</div>
+    </div>`;
+
+            let html = step(1, 'INJECTOR → Serial',
+                `<span class="k">json: </span><span class="v">${esc(j0)}</span><br>` +
+                `<span class="k">aes:  </span>${p.aesErr ? '<span class="bad">KEY SCRAMBLED ✗</span>' : '<span class="ok">OK ✓</span>'}<br>` +
+                `<span class="k">hex:  </span><span class="hex">${hex.slice(0, 30)}…</span><br>` +
+                `<span class="k">size: </span><span class="v">${p.size}B</span>` +
+                (p.spiked ? ` <span style="color:var(--warn)">⏱ +${p.lat - SIM.baseInt}ms spike</span>` : '') +
+                (p.corrupted ? `<br><span class="bad">⚡ ${p.ctype}</span>` : '') +
+                (p.dropped ? '<br><span class="bad">→ DROPPED before TX</span>' : ''), true);
+
+            html += step(2, 'GATEWAY → ESP-NOW',
+                p.dropped
+                    ? `<span class="bad">✗ DROPPED</span><br><span class="k">reason: </span><span class="v">${p.ctype || 'drop_rate'}</span>`
+                    : `<span class="k">rx_hex: </span><span class="hex">${hex.slice(0, 24)}…</span><br>` +
+                    `<span class="k">bytes:  </span><span class="v">${p.size}B decoded</span><br>` +
+                    `<span class="k">action: </span><span class="ok">esp_now_send() ✓</span><br>` +
+                    `<span class="k">ch:     </span><span class="v">6</span>`, !p.dropped);
+
+            if (!p.dropped) {
+                html += step(3, 'RELAY 1 — hops→1',
+                    `<span class="k">decrypt: </span>${p.aesErr ? '<span class="bad">FAIL — bad key ✗</span>' : '<span class="ok">OK ✓</span>'}<br>` +
+                    `<span class="k">json:    </span><span class="v">${esc(j1)}</span><br>` +
+                    `<span class="k">hr:      </span><span class="${vc}">${p.hr}bpm</span>  ` +
+                    `<span class="k">spo2: </span><span class="${vc}">${p.spo2}%</span><br>` +
+                    `<span class="k">relay:   </span><span class="ok">esp_now_send() ✓</span>`, false);
+
+                html += step(4, 'RELAY 2 — hops→2',
+                    `<span class="k">decrypt: </span><span class="ok">OK ✓</span><br>` +
+                    `<span class="k">json:    </span><span class="v">${esc(j2)}</span><br>` +
+                    `<span class="k">hops:    </span><span class="v">2 / 4 max</span><br>` +
+                    `<span class="k">relay:   </span><span class="ok">esp_now_send() ✓</span>`, false);
+
+                html += step(5, 'SINK — DELIVERED',
+                    `<span class="ok">✓ DELIVERED</span><br>` +
+                    `<span class="k">node:    </span><span class="v">${p.nid} / seq #${p.seq}</span><br>` +
+                    `<span class="k">latency: </span><span class="v">${p.lat}ms</span><br>` +
+                    `<span class="k">hops:    </span><span class="v">2</span>`, false);
+            }
+
+            el.innerHTML = html;
+        }
+        function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+        /* ── SVG ANIMATIONS ─────────────────────────────── */
+        const SEGS = { usb: 'p-usb', w1: 'p-w1', w2: 'p-w2', s1: 'p-s1', s2: 'p-s2' };
+
+        function flashNode(id) {
+            const el = document.getElementById(id); if (!el) return;
+            const origStroke = el.getAttribute('stroke') || '';
+            el.setAttribute('stroke', '#FF9933');
+            el.setAttribute('stroke-width', '2.5');
+            setTimeout(() => { el.setAttribute('stroke', origStroke); el.setAttribute('stroke-width', '1.5'); }, 350);
+        }
+
+        function animPkt(p) {
+            const layer = document.getElementById('pkt-layer');
+            const col = p.dropped ? '#E84040' : p.corrupted ? '#F0A500' : '#FF9933';
+            const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            const glow = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            glow.setAttribute('r', '9'); glow.setAttribute('fill', col); glow.setAttribute('opacity', '.2');
+            dot.setAttribute('r', '5'); dot.setAttribute('fill', col); dot.setAttribute('filter', 'url(#fg)');
+            g.appendChild(glow); g.appendChild(dot); layer.appendChild(g);
+
+            const via = Math.random() > .5 ? 'w1' : 'w2';
+            const segments = p.dropped
+                ? [SEGS.usb]
+                : [SEGS.usb, SEGS[via], via === 'w1' ? SEGS.s1 : SEGS.s2];
+
+            let si = 0, prog = 0;
+            const spd = 0.011 + Math.random() * .006;
+
+            function frame() {
+                if (si >= segments.length) { g.remove(); return; }
+                const pathEl = document.getElementById(segments[si]);
+                if (!pathEl) { g.remove(); return; }
+                const tl = pathEl.getTotalLength();
+                prog = Math.min(prog + spd, 1);
+                const pt = pathEl.getPointAtLength(prog * tl);
+                g.setAttribute('transform', `translate(${pt.x},${pt.y})`);
+
+                // Light up the wireless link while a packet traverses it
+                if (segments[si] === SEGS.w1) { document.getElementById('p-w1').classList.add('lit'); }
+                if (segments[si] === SEGS.w2) { document.getElementById('p-w2').classList.add('lit'); }
+
+                if (prog >= 1) {
+                    document.getElementById('p-w1').classList.remove('lit');
+                    document.getElementById('p-w2').classList.remove('lit');
+                    // Flash destination node
+                    if (si === 0) { flashNode('gw-p'); triggerRipple(); }
+                    if (si === 1) { flashNode(via === 'w1' ? 'r1-c' : 'r2-c'); }
+                    if (si === 2) { flashNode('sink-p'); }
+
+                    if (p.dropped && si === 0) {
+                        // Draw ✕ marker
+                        const x = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                        x.setAttribute('x', pt.x); x.setAttribute('y', pt.y + 5);
+                        x.setAttribute('text-anchor', 'middle'); x.setAttribute('font-size', '16');
+                        x.setAttribute('fill', '#E84040'); x.textContent = '✕';
+                        layer.appendChild(x); setTimeout(() => x.remove(), 900); g.remove(); return;
+                    }
+                    si++; prog = 0;
+                }
+                requestAnimationFrame(frame);
+            }
+            requestAnimationFrame(frame);
+        }
+
+        function triggerRipple() {
+            ['ring1', 'ring2', 'ring3'].forEach((id, i) => {
+                const r = document.getElementById(id); if (!r) return;
+                setTimeout(() => {
+                    let rv = 36 + i * 14, op = .65;
+                    const t = setInterval(() => {
+                        rv += 2.5; op -= .055;
+                        r.setAttribute('r', rv); r.setAttribute('opacity', op);
+                        if (op <= 0) { clearInterval(t); r.setAttribute('r', 36 + i * 14); r.setAttribute('opacity', '0'); }
+                    }, 28);
+                }, i * 80);
+            });
+        }
+
+        /* ── STATS ───────────────────────────────────────── */
+        function updateStats() {
+            document.getElementById('st-tx').textContent = SIM.stats.tx;
+            document.getElementById('st-rx').textContent = SIM.stats.rx;
+            document.getElementById('st-dp').textContent = SIM.stats.drop;
+            document.getElementById('st-co').textContent = SIM.stats.corrupt;
+            const la = SIM.stats.latencies; const ha = SIM.stats.hops;
+            document.getElementById('st-la').textContent = la.length ? Math.round(la.reduce((a, b) => a + b, 0) / la.length) + 'ms' : '—';
+            document.getElementById('st-ho').textContent = ha.length ? (ha.reduce((a, b) => a + b, 0) / ha.length).toFixed(1) : '—';
+            document.getElementById('hd-tx').textContent = SIM.stats.tx;
+            document.getElementById('hd-drop').textContent = SIM.stats.drop;
+            document.getElementById('hd-corr').textContent = SIM.stats.corrupt;
+            document.getElementById('hd-tick').textContent = String(SIM.tick).padStart(4, '0');
+        }
+
+        /* ── SIMULATION TICK ─────────────────────────────── */
+        function tick() {
+            if (!SIM.running) return;
+            SIM.tick++;
+            SIM.node2Tick++;
+
+            [1, 2, 3].forEach((nid, idx) => {
+                setTimeout(() => {
+                    if (!SIM.running) return;
+                    const p = mkPkt(nid);
+                    updateCard(nid, p);
+                    SIM.stats.tx++;
+                    SIM.stats.latencies.push(p.lat);
+                    if (SIM.stats.latencies.length > 60) SIM.stats.latencies.shift();
+
+                    if (p.dropped) {
+                        SIM.stats.drop++;
+                        log('DROP', 'err', `Node <span class="hi">${nid}</span> seq#${p.seq} <span class="c">DROPPED</span> — ${p.ctype || 'drop_rate'}`);
+                    } else if (p.corrupted) {
+                        SIM.stats.corrupt++; SIM.stats.rx++; SIM.stats.hops.push(2);
+                        log('FAULT', 'warn', `Node <span class="hi">${nid}</span> seq#${p.seq} <span style="color:var(--warn)">⚡ ${p.ctype}</span> hr=<span class="${p.hr > 130 ? 'c' : 'a'}">${p.hr}</span> spo2=${p.spo2}%`);
+                    } else {
+                        SIM.stats.rx++; SIM.stats.hops.push(2);
+                        const crit = p.hr > 130 || p.spo2 < 88;
+                        log('TX', 'gw',
+                            `Node <span class="hi">${nid}</span> seq#<span class="a">${p.seq}</span>` +
+                            ` hr=<span class="${crit ? 'c' : 'a'}">${p.hr}bpm</span>` +
+                            ` spo2=<span class="${p.spo2 < 90 ? 'c' : ''}">${p.spo2}%</span>` +
+                            ` ${p.size}B lat=${p.lat}ms` +
+                            (p.spiked ? ` <span style="color:var(--warn)">⏱SPIKE</span>` : ''));
+                        setTimeout(() => log('RR', 'rr', `Relay-1 → hops=1 node=${nid} seq#${p.seq} re-encrypt+broadcast ✓`), 280);
+                        setTimeout(() => log('RR', 'rr', `Relay-2 → hops=2 node=${nid} seq#${p.seq} delivered to sink ✓`), 560);
+                    }
+
+                    /* ── Send to Backend Bridge ── */
+                    if (ws && ws.readyState === WebSocket.OPEN) {
+                        ws.send(JSON.stringify({
+                            type: 'inject',
+                            payload: {
+                                node_id: p.nid,
+                                seq: p.seq,
+                                hr: p.hr,
+                                spo2: p.spo2,
+                                hops: p.hops,
+                                ts: p.ts
+                            },
+                            faults: {
+                                drop: p.dropped,
+                                aesErr: p.aesErr,
+                                corruptHex: (p.ctype === 'CRC_POISON' || p.ctype === 'BURST' || p.ctype === 'NOISE'),
+                                truncate: (p.ctype === 'TRUNCATE')
+                            }
+                        }));
+                    }
+
+                    showAnatomy(p);
+                    animPkt(p);
+                    updateStats();
+                }, idx * 220);
+            });
+
+            const j = Math.round((Math.random() - .5) * 2 * SIM.jitter * .4);
+            SIM.timerH = setTimeout(tick, SIM.baseInt + j);
+        }
+
+        /* ── START / STOP ───────────────────────────────── */
+        function startSim() {
+            if (SIM.running) return;
+            SIM.running = true;
+            document.getElementById('run-btn').textContent = '■ STOP';
+            document.getElementById('run-btn').classList.add('on');
+            document.getElementById('sdot').className = 'sdot run';
+            document.getElementById('sstat').textContent = 'RUNNING';
+            log('SYS', 'ok', 'Simulation <span class="hi">started</span> — nodes 1,2,3 active');
+            tick();
+        }
+        function stopSim() {
+            if (!SIM.running) return;
+            SIM.running = false;
+            clearTimeout(SIM.timerH);
+            document.getElementById('run-btn').textContent = '▶ START';
+            document.getElementById('run-btn').classList.remove('on');
+            document.getElementById('sdot').className = 'sdot stop';
+            document.getElementById('sstat').textContent = 'STOPPED';
+            log('SYS', 'err', 'Simulation <span class="hi">stopped</span>');
+        }
+        document.getElementById('run-btn').addEventListener('click', () => SIM.running ? stopSim() : startSim());
+
+        /* ── FAULT CONTROLS ─────────────────────────────── */
+        function arm(key, btnId) {
+            if (!SIM.running) { log('SYS', 'warn', 'Start simulation before arming faults'); return; }
+            SIM.pend[key] = true;
+            document.getElementById(btnId).classList.add('armed');
+            document.getElementById('arm-bar').classList.add('show');
+            log('FAULT', 'warn', `⚡ <span class="hi">${key.toUpperCase()}</span> armed — triggers on next packet`);
+        }
+        function disarm(btnId) {
+            const b = document.getElementById(btnId); if (b) b.classList.remove('armed');
+            const anyArmed = Object.entries(SIM.pend).some(([k, v]) => k !== 'burst' && v === true) || (SIM.pend.burst > 0);
+            if (!anyArmed) document.getElementById('arm-bar').classList.remove('show');
+        }
+        function burstCorrupt() {
+            if (!SIM.running) { log('SYS', 'warn', 'Start simulation first'); return; }
+            SIM.pend.burst = 5;
+            document.getElementById('arm-bar').classList.add('show');
+            log('FAULT', 'err', '💥 BURST CORRUPT armed — next <span class="hi">5 packets</span> targeted');
+        }
+        function injectSpike() {
+            if (!SIM.running) { log('SYS', 'warn', 'Start simulation first'); return; }
+            SIM.pend.spike = true;
+            log('FAULT', 'warn', '⏱ Latency spike queued for next cycle');
+        }
+        function resetNode2() {
+            SIM.node2Tick = 0;
+            log('SYS', 'ok', 'Node 2 vitals <span class="hi">reset</span> — deterioration restarting from baseline');
+        }
+
+        /* ── SLIDERS ────────────────────────────────────── */
+        const sliders = [
+            ['sl-int', 'cv-int', v => (v / 1000).toFixed(1) + 's', 'baseInt'],
+            ['sl-jit', 'cv-jit', v => Math.round(v) + 'ms', 'jitter'],
+            ['sl-sz', 'cv-sz', v => '±' + Math.round(v) + 'B', 'szVar'],
+            ['sl-dr', 'cv-dr', v => Math.round(v) + '%', 'dropRate'],
+            ['sl-ns', 'cv-ns', v => Math.round(v) + '%', 'noise'],
+            ['sl-sp', 'cv-sp', v => Math.round(v) + '%', 'spikeProb'],
+            ['sl-dc', 'cv-dc', v => parseFloat(v).toFixed(1) + '×', 'decay'],
+            ['sl-ae', 'cv-ae', v => Math.round(v) + '%', 'aesErr'],
+        ];
+        sliders.forEach(([sid, vid, fmt, key]) => {
+            const el = document.getElementById(sid);
+            el.addEventListener('input', () => { SIM[key] = parseFloat(el.value); document.getElementById(vid).textContent = fmt(el.value); });
+        });
+
+        /* ── THEME ───────────────────────────────────────── */
+        document.getElementById('theme-btn').addEventListener('click', () => {
+            const h = document.documentElement;
+            h.setAttribute('data-theme', h.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+        });
+
+        /* ── LOG ─────────────────────────────────────────── */
+        function log(tag, cls, msg) {
+            const c = document.getElementById('log-entries');
+            SIM.logTotal++;
+            const now = new Date();
+            const ts = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}.${String(now.getMilliseconds()).padStart(3, '0')}`;
+            const d = document.createElement('div');
+            d.className = 'le';
+            d.innerHTML = `<span class="lts">${ts}</span><span class="ltag ${cls}">[${tag}]</span><span class="lb">${msg}</span>`;
+            c.prepend(d);
+            while (c.children.length > 200) c.removeChild(c.lastChild);
+            document.getElementById('log-cnt').textContent = `${SIM.logTotal} events`;
+        }
+        function clearLog() { document.getElementById('log-entries').innerHTML = ''; SIM.logTotal = 0; document.getElementById('log-cnt').textContent = '0 events'; }
+
+        /* ── INIT LOG ────────────────────────────────────── */
+        log('SYS', 'ok', 'PulseNet-Mesh HIL Simulator <span class="a">v1.0</span> ready');
+        log('SYS', 'ok', 'AES-128-ECB key loaded · ESP-NOW Ch6 · MAX_HOPS=4 · MTU=250B');
+        log('SYS', 'ok', 'Nodes 1 (stable), 2 (deteriorating), 3 (elevated) registered');
+    </script>
+</body>
+
+</html>
